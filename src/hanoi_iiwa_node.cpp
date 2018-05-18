@@ -158,7 +158,7 @@ public:
   }
 
   void gripperOpen() {
-    gripper.setRawPosition(30);
+    gripper.setRawPosition(0);
     gripper.write();
     waitForGripper();
   }
@@ -167,16 +167,79 @@ public:
     assert(from >= 0 && from <= 2);
     assert(to >= 0 && to <= 2);
 
-    // Hier Code einfuegen
+    geometry_msgs::PoseStamped start_pose = tower_poses_[from];
+    start_pose.pose.position.z += 0.2;
+
+
+    geometry_msgs::PoseStamped end_pose = tower_poses_[to];
+    end_pose.pose.position.z += 0.2;
+
+    geometry_msgs::PoseStamped cur_from_pose = tower_poses_[from];
+    cur_from_pose.pose.position.z += tower_nSlices_[from]*slice_height_-0.004;
+
+    geometry_msgs::PoseStamped cur_to_pose = tower_poses_[to];
+    cur_to_pose.pose.position.z += 0.11;
+
+    std::vector<geometry_msgs::Pose> weg_auf;
+    
+    std::vector<geometry_msgs::Pose> weg_rueber;
+    
+
+
+    //fahre über Start Turm (20cm)
+    //planAndMove( start_pose, approvalRequired);
+
+    //fahre an oberste Scheibe
+    //planAndMove(cur_from_pose, approvalRequired);
+    weg_rueber.push_back(start_pose.pose);
+    weg_rueber.push_back(cur_from_pose.pose);
+    moveAlongCartesianPathInWorldCoords(weg_rueber, 0.01, 0.0, true, approvalRequired);
+
+    gripperClose();
+    tower_nSlices_[from]--;
+
+    double dif = std::abs(cur_from_pose.pose.position.z - start_pose.pose.position.z);
+    double step = dif/10;
+    // weg auf in dif/10 Schritten dem Wegpunkt array hinzufügen
+    for (int i = 0; i < 10; ++i) {
+    cur_from_pose.pose.position.z += step;
+    weg_auf.push_back(cur_from_pose.pose);
+    }
+    //20 cm über ziel turm dem Wegpunkte array hinzufügen
+    weg_auf.push_back(end_pose.pose);
+    //10 cm über ziel turm dem Wegpunkte array hinzufügen
+    weg_auf.push_back(cur_to_pose.pose);
+    
+    moveAlongCartesianPathInWorldCoords(weg_auf, 0.01, 0.0, true, approvalRequired);
+
+    cur_to_pose.pose.position.z -= 0.01;
+    weg_auf.push_back(cur_to_pose.pose);
+
+    gripperOpen();
+    tower_nSlices_[to]++;
+
+    // fahre über Ziel Turm (20cm)
+    planAndMove(end_pose, approvalRequired);
+
   }
 
-  void moveTower(int height, int from, int to, int with, bool approvalRequired) {
+  void moveTower(int n, int from, int with, int to, bool approvalRequired) {
     assert(from >= 0 && from <= 2);
     assert(to >= 0 && to <= 2);
     assert(with >= 0 && with <= 2);
 
-    // Hier Code einfuegen
+     if(n>1){
+        moveTower(n-1, from, to, with, approvalRequired);
+
+        moveSlice(from, to, approvalRequired);
+        moveTower(n-1, with, from, to, approvalRequired);
+    }
+    else {
+        moveSlice(from, to, approvalRequired);
+    }
+
   }
+
 };
 } // namespace hanoi
 
@@ -202,12 +265,12 @@ int main(int argc, char **argv)
   tow0_pose.pose.orientation.w = 0.0;
 
   geometry_msgs::PoseStamped tow1_pose = tow0_pose;
-  //tow1_pose.pose.position.x -= ???
-  //tow1_pose.pose.position.y += ???
+  tow1_pose.pose.position.x -= 0.045;
+  tow1_pose.pose.position.y += 0.285;
 
   geometry_msgs::PoseStamped tow2_pose = tow1_pose;
-  //tow2_pose.pose.position.x -= ???
-  //tow2_pose.pose.position.y -= ???
+  tow2_pose.pose.position.x -= 0.313;
+  tow2_pose.pose.position.y -= 0.001;
 
   hanoi::HanoiRobot hanoi_robot(&node_handle, "manipulator", base_pose_jointSpace, 3, 0.01);
   hanoi_robot.setTowerPose(0, tow0_pose);
@@ -218,8 +281,8 @@ int main(int argc, char **argv)
   hanoi_robot.gripperInit();
   hanoi_robot.waitForApproval();
 
-  hanoi_robot.moveTower(3, 0, 2, 1, true);
-  hanoi_robot.planAndMoveToBasePose(true);
+  hanoi_robot.moveTower(3, 0, 1, 2, false);
+  hanoi_robot.planAndMoveToBasePose(false);
   
   ros::shutdown();
   return 0;

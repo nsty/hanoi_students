@@ -158,16 +158,83 @@ public:
   }
 
   void gripperOpen() {
-    gripper.setRawPosition(30);
+    gripper.setRawPosition(0);
     gripper.write();
     waitForGripper();
   }
 
-  void moveSlice(int from, int to, bool approvalRequired) {
+void moveSlice(int from, int to, bool approvalRequired) {
     assert(from >= 0 && from <= 2);
     assert(to >= 0 && to <= 2);
 
-    // Hier Code einfuegen
+    // Hier Code einfügen
+
+    //oberhalb From Tower
+    geometry_msgs::PoseStamped tower_pose_from_oben = tower_poses_[from];
+    tower_pose_from_oben.pose.position.z += 0.15;
+    //planAndMove(tower_pose_from_oben, approvalRequired);
+
+    //unten from Tower
+    geometry_msgs::PoseStamped tower_pose_from_unten = tower_poses_[from];
+    tower_pose_from_unten.pose.position.z += slice_height_*(tower_nSlices_[from]-1)+0.02;
+    //planAndMove(tower_pose_from_unten, approvalRequired);
+
+
+    std::vector<geometry_msgs::Pose> vorGreifen;
+    vorGreifen.push_back(tower_pose_from_oben.pose);
+    
+
+
+
+    vorGreifen.push_back(tower_pose_from_unten.pose);
+    moveAlongCartesianPathInWorldCoords(vorGreifen, 0.01, 0.0, true, approvalRequired);
+        ros::Duration(0.3).sleep();
+    vorGreifen.clear();
+
+
+    tower_pose_from_unten.pose.position.z -= 0.02;
+    planAndMove(tower_pose_from_unten, approvalRequired);
+
+
+    //nehmen und greifen
+    tower_nSlices_[from] -= 1;
+    gripperClose();
+
+    for(int i = 1; i<15; i++){
+      geometry_msgs::PoseStamped tower_pose_from_zwischen = tower_pose_from_unten;
+      tower_pose_from_zwischen.pose.position.z += i*0.01;
+      vorGreifen.push_back(tower_pose_from_zwischen.pose);
+    }
+    //fahre wieder nach oben
+    //planAndMove(tower_pose_from_oben, approvalRequired);
+
+    //fahre zu to oberhalb
+    geometry_msgs::PoseStamped tower_pose_to_oben = tower_poses_[to];
+    tower_pose_to_oben.pose.position.z += 0.15;
+    //planAndMove(tower_pose_to_oben, approvalRequired);
+
+    //fahre zu to stab
+    geometry_msgs::PoseStamped tower_pose_to_stab = tower_poses_[to];
+    tower_pose_to_stab.pose.position.z += 0.09;
+    //planAndMove(tower_pose_to_stab, approvalRequired);
+
+    //vorGreifen.push_back(tower_pose_from_oben.pose);
+    vorGreifen.push_back(tower_pose_to_oben.pose);
+    //vorGreifen.push_back(tower_pose_to_stab.pose);
+    moveAlongCartesianPathInWorldCoords(vorGreifen, 0.01, 0.0, true, approvalRequired);
+    ros::Duration(0.3).sleep();
+    vorGreifen.clear();
+
+    planAndMove(tower_pose_to_stab.pose, approvalRequired);
+
+    //loslassen
+    gripperOpen();
+    tower_nSlices_[to] += 1;
+
+    //wieder hoch
+    planAndMove(tower_pose_to_oben, approvalRequired);
+
+
   }
 
   void moveTower(int height, int from, int to, int with, bool approvalRequired) {
@@ -175,7 +242,28 @@ public:
     assert(to >= 0 && to <= 2);
     assert(with >= 0 && with <= 2);
 
+
     // Hier Code einfuegen
+
+
+    if (height>0){
+      moveTower(height-1, from, with, to, approvalRequired);
+        
+        moveSlice(from, to, approvalRequired);
+
+      moveTower(height-1, with, to, from, approvalRequired);
+
+    }
+
+
+
+
+    //planAndMove(tower_poses_[0], approvalRequired);
+    //planAndMove(tower_poses_[1], approvalRequired);
+    //planAndMove(tower_poses_[2], approvalRequired);
+
+
+
   }
 };
 } // namespace hanoi
@@ -192,9 +280,9 @@ int main(int argc, char **argv)
 
   geometry_msgs::PoseStamped tow0_pose;
   tow0_pose.header.frame_id = "world";
-  tow0_pose.pose.position.x = 0.709;
-  tow0_pose.pose.position.y = 0.3545;
-  tow0_pose.pose.position.z = 1.009;
+  tow0_pose.pose.position.x = 0.6982;
+  tow0_pose.pose.position.y = 0.358;
+  tow0_pose.pose.position.z = 1.017;
   
   tow0_pose.pose.orientation.x = 0.0;
   tow0_pose.pose.orientation.y = 1.0;
@@ -202,12 +290,12 @@ int main(int argc, char **argv)
   tow0_pose.pose.orientation.w = 0.0;
 
   geometry_msgs::PoseStamped tow1_pose = tow0_pose;
-  //tow1_pose.pose.position.x -= ???
-  //tow1_pose.pose.position.y += ???
+  tow1_pose.pose.position.x -= 0.042;
+  tow1_pose.pose.position.y += 0.28;
 
   geometry_msgs::PoseStamped tow2_pose = tow1_pose;
-  //tow2_pose.pose.position.x -= ???
-  //tow2_pose.pose.position.y -= ???
+  tow2_pose.pose.position.x -= 0.326;
+  tow2_pose.pose.position.y -= 0.005;
 
   hanoi::HanoiRobot hanoi_robot(&node_handle, "manipulator", base_pose_jointSpace, 3, 0.01);
   hanoi_robot.setTowerPose(0, tow0_pose);
@@ -218,7 +306,19 @@ int main(int argc, char **argv)
   hanoi_robot.gripperInit();
   hanoi_robot.waitForApproval();
 
-  hanoi_robot.moveTower(3, 0, 2, 1, true);
+
+  //hanoi_robot.planAndMove(tow0_pose, true);
+  //hanoi_robot.gripperClose();
+
+  //geometry_msgs::PoseStamped tower_pose_1_oben = tow1_pose;
+  //tower_pose_1_oben.pose.position.z += 0.11;
+  //hanoi_robot.planAndMove(tower_pose_1_oben, true);
+
+  //geometry_msgs::PoseStamped tower_pose_2_oben = tow2_pose;
+  //tower_pose_2_oben.pose.position.z += 0.11;
+  //hanoi_robot.planAndMove(tower_pose_2_oben, true);
+
+  hanoi_robot.moveTower(3, 0, 2, 1, false);
   hanoi_robot.planAndMoveToBasePose(true);
   
   ros::shutdown();

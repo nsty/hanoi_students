@@ -290,12 +290,12 @@ int main(int argc, char **argv)
   tow0_pose.pose.orientation.w = 0.0;
 
   geometry_msgs::PoseStamped tow1_pose = tow0_pose;
-  tow1_pose.pose.position.x -= 0.042;
-  tow1_pose.pose.position.y += 0.28;
+  tow1_pose.pose.position.x -= 0.032;
+  tow1_pose.pose.position.y += 0.290;
 
   geometry_msgs::PoseStamped tow2_pose = tow1_pose;
-  tow2_pose.pose.position.x -= 0.326;
-  tow2_pose.pose.position.y -= 0.005;
+  tow2_pose.pose.position.x -= 0.330;
+  tow2_pose.pose.position.y -= 0.009;
 
   hanoi::HanoiRobot hanoi_robot(&node_handle, "manipulator", base_pose_jointSpace, 3, 0.01);
   hanoi_robot.setTowerPose(0, tow0_pose);
@@ -304,20 +304,22 @@ int main(int argc, char **argv)
 
   hanoi_robot.planAndMoveToBasePose();
   hanoi_robot.gripperInit();
+  hanoi_robot.gripperClose();
   hanoi_robot.waitForApproval();
 
+/*
+  geometry_msgs::PoseStamped tower_pose_0_oben = tow0_pose;
+  tower_pose_0_oben.pose.position.z += 0.11;
+  hanoi_robot.planAndMove(tower_pose_0_oben, true);
 
-  //hanoi_robot.planAndMove(tow0_pose, true);
-  //hanoi_robot.gripperClose();
+  geometry_msgs::PoseStamped tower_pose_1_oben = tow1_pose;
+  tower_pose_1_oben.pose.position.z += 0.11;
+  hanoi_robot.planAndMove(tower_pose_1_oben, true);
 
-  //geometry_msgs::PoseStamped tower_pose_1_oben = tow1_pose;
-  //tower_pose_1_oben.pose.position.z += 0.11;
-  //hanoi_robot.planAndMove(tower_pose_1_oben, true);
-
-  //geometry_msgs::PoseStamped tower_pose_2_oben = tow2_pose;
-  //tower_pose_2_oben.pose.position.z += 0.11;
-  //hanoi_robot.planAndMove(tower_pose_2_oben, true);
-
+  geometry_msgs::PoseStamped tower_pose_2_oben = tow2_pose;
+  tower_pose_2_oben.pose.position.z += 0.11;
+  hanoi_robot.planAndMove(tower_pose_2_oben, true);
+*/
   hanoi_robot.moveTower(3, 0, 2, 1, false);
   hanoi_robot.planAndMoveToBasePose(true);
   
